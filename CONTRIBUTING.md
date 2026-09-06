@@ -13,7 +13,7 @@ PortafolioVRAS/
 ├── CONTRIBUTING.md
 ├── README.md
 ├── docs/
-│   ├── 00-insumos-brutos/          # Documentos fuente y investigaciones
+│   ├── 00-insumos-brutos/          # Documentos fuente e investigaciones
 │   ├── 01-marco-normativo/         # Estándares y normas de referencia
 │   ├── 02-historias-usuario/       # Historias de usuario del portafolio
 │   ├── 03-reglas-negocio/          # Reglas de negocio del dominio
@@ -24,8 +24,15 @@ PortafolioVRAS/
 │   ├── 08-roadmaps/                # Hojas de ruta
 │   ├── 09-runbooks/                # Procedimientos operativos
 │   └── 10-bitacora/                # Bitácora de desarrollo
-└── src/
-    └── [proyectos-del-portafolio]/ # Casos de estudio y código fuente
+├── src/
+│   ├── components/                 # Componentes React reutilizables
+│   ├── pages/                      # Páginas/rutas
+│   ├── layouts/                    # Layouts compartidos
+│   ├── hooks/                      # Custom hooks
+│   ├── lib/                        # Utilidades y clientes (Supabase)
+│   ├── types/                      # Tipos TypeScript
+│   └── assets/                     # Imágenes, fuentes
+└── public/                         # Archivos estáticos (favicon, robots.txt)
 ```
 
 | Carpeta | Propósito |
@@ -33,7 +40,13 @@ PortafolioVRAS/
 | `docs/00-insumos-brutos/` | Investigaciones, documentos fuente y borradores que alimentan el marco normativo. |
 | `docs/01-marco-normativo/` | Estándares oficiales (OWASP, ISO, WCAG, Conventional Commits, etc.) que rigen cada aspecto del proyecto. OpenCode los consume como reglas de validación. |
 | `docs/02-historias-usuario/` a `10-bitacora/` | Documentación organizada por dominio: requisitos, reglas, infraestructura, arquitectura, roadmaps, runbooks y bitácora. |
-| `src/` | Código fuente de los proyectos y casos de estudio del portafolio. |
+| `src/components/` | Componentes React reutilizables (Hero, ProjectCard, Skills, ContactForm, etc.). |
+| `src/pages/` | Páginas asociadas a rutas (Home, Proyecto, SobreMí, etc.). |
+| `src/layouts/` | Layouts compartidos (MainLayout, AdminLayout). |
+| `src/hooks/` | Custom hooks (useSupabase, useIntersectionObserver, etc.). |
+| `src/lib/` | Utilidades, cliente de Supabase, esquemas Zod. |
+| `src/types/` | Definiciones de tipos TypeScript. |
+| `public/` | Favicon, manifest, robots.txt, imágenes estáticas. |
 
 ---
 
@@ -133,14 +146,30 @@ Referencia completa: [`docs/01-marco-normativo/02-semantic-versioning.md`](docs/
 
 ## 5. Estrategia de ramas Git
 
-> **Nota:** La estrategia de ramas aún no está definida. Este sección se actualizará cuando se confirme.
+**Estrategia confirmada: Trunk-based development**
 
-Opciones consideradas:
+Dado que se trata de un proyecto personal desarrollado con asistencia de IA, se adopta un modelo simplificado sobre la rama `main`:
 
-| Estrategia | Cuándo usarla |
+| Regla | Detalle |
 |:---|:---|
-| **Trunk-based (main)** | Desarrollo iterativo rápido, commits atómicos directos en `main`. Ideal para proyecto personal con asistencia de IA. |
-| **Feature branches** | Cuando se necesiten cambios experimentales paralelos o revisiones antes de integrar. |
+| **Rama principal** | `main` — siempre desplegable, rama por defecto. |
+| **Commits directos** | Los cambios se commitean directamente en `main` con mensajes atómicos conformes a Conventional Commits. |
+| **Ramas de feature** | Crear solo cuando un cambio es experimental, de alto riesgo o requiere revisión antes de integrar. Nombrarlas como `feat/<nombre-corto>` o `fix/<nombre-corto>`. |
+| **Merge** | Preferir `--no-ff` para preservar el historial de la feature branch. |
+| **Protección** | Configurar en GitHub: `main` protegida, requiere PR y 1 revisión antes de merge (cuando aplique). |
+
+### Flujo típico
+
+```
+main ─────●─────●─────●─────●─────●─────→ (producción)
+               \           /
+                feat/x ────
+```
+
+1. Crear rama `feat/x` desde `main`.
+2. Desarrollar con commits atómicos.
+3. Abrir PR → revisar → merge a `main` con `--no-ff`.
+4. Vercel despliega automáticamente desde `main`.
 
 ---
 
@@ -238,9 +267,31 @@ Antes de considerar completo cualquier cambio, verificar:
 
 ## 11. Stack tecnológico
 
-> **Estado: Por definir.**
->
-> El stack tecnológico se confirmará una vez completada la documentación de contexto en `docs/`. Las opciones evaluadas incluyen frameworks de renderizado estático (Astro, Next.js, SvelteKit), herramientas de análisis estático (ESLint, Prettier), validación (Zod), y despliegue en CDN (Cloudflare Pages, Vercel, Netlify).
+> **Estado: Confirmado.**
+
+| Capa | Tecnología | Versión |
+|:---|:---|:---|
+| **Frontend** | React + TypeScript | 18+ |
+| **Build Tool** | Vite | 5+ |
+| **Estilos** | Tailwind CSS | 3+ |
+| **Enrutamiento** | React Router | v6 |
+| **Backend** | Vercel Functions (Node.js) | 20+ |
+| **Validación** | Zod | — |
+| **Base de datos** | Supabase (PostgreSQL) | 15+ |
+| **Autenticación** | Supabase Auth (JWT) | — |
+| **Hosting** | Vercel (Edge Network) | — |
+| **CI/CD** | GitHub + Vercel integration | — |
+
+### Comandos disponibles
+
+```bash
+npm run dev          # Vite dev server (localhost:5173)
+npm run build        # tsc && vite build
+npm run lint         # ESLint
+npm run typecheck    # tsc --noEmit
+npm test             # Vitest
+git push origin main # Auto-deploys via Vercel
+```
 
 ---
 
