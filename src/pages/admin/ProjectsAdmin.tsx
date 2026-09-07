@@ -10,6 +10,22 @@ import type { Project } from '../../types'
 
 const ITEMS_PER_PAGE = 5
 
+function mapProject(row: Record<string, unknown>): Project {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    slug: row.slug as string,
+    description: row.description as string,
+    shortDesc: row.short_desc as string,
+    technologies: row.technologies as string[],
+    imageUrl: row.image_url as string,
+    repoUrl: (row.repo_url as string) ?? undefined,
+    demoUrl: (row.demo_url as string) ?? undefined,
+    featured: row.featured as boolean,
+    orderIndex: row.order_index as number,
+  }
+}
+
 export function ProjectsAdmin() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
@@ -48,7 +64,7 @@ export function ProjectsAdmin() {
       console.error('Error fetching projects:', error)
     }
     
-    setProjects(data || [])
+    setProjects((data || []).map(mapProject))
     setLoading(false)
   }
 
