@@ -8,9 +8,12 @@ import { Card, CardHeader, CardTitle } from '../../components/common/Card'
 import { Badge } from '../../components/common/Badge'
 import type { Project } from '../../types'
 
+const ITEMS_PER_PAGE = 5
+
 export function ProjectsAdmin() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const { uploadState, uploadImage, reset: resetUpload } = useImageUpload()
@@ -27,19 +30,33 @@ export function ProjectsAdmin() {
     featured: false,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [serverError, setServerError] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => {
     fetchProjects()
   }, [])
 
   async function fetchProjects() {
-    const { data } = await supabase
+    setLoading(true)
+    const { data, error } = await supabase
       .from('projects')
       .select('*')
       .order('order_index')
+    
+    if (error) {
+      console.error('Error fetching projects:', error)
+    }
+    
     setProjects(data || [])
     setLoading(false)
   }
+
+  const totalPages = Math.ceil(projects.length / ITEMS_PER_PAGE)
+  const paginatedProjects = projects.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
 
   function validate(): boolean {
     const newErrors: Record<string, string> = {}
@@ -49,6 +66,8 @@ export function ProjectsAdmin() {
     }
     if (!formData.slug.trim()) {
       newErrors.slug = 'El slug es requerido'
+    } else if (!/^[a-z0-9-]+$/.test(formData.slug)) {
+      newErrors.slug = 'El slug solo puede contener minúsculas, números y guiones'
     }
     if (!formData.shortDesc.trim()) {
       newErrors.shortDesc = 'La descripción corta es requerida'
@@ -77,6 +96,7 @@ export function ProjectsAdmin() {
       featured: false,
     })
     setErrors({})
+    setServerError(null)
     resetUpload()
     setEditingProject(null)
     setIsFormOpen(false)
@@ -97,6 +117,7 @@ export function ProjectsAdmin() {
     })
     setIsFormOpen(true)
     resetUpload()
+    setServerError(null)
   }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -114,32 +135,63 @@ export function ProjectsAdmin() {
     
     if (!validate()) return
 
+    setSaving(true)
+    setServerError(null)
+
     const projectData = {
       name: formData.name.trim(),
       slug: formData.slug.trim(),
       description: formData.description.trim(),
-      shortDesc: formData.shortDesc.trim(),
+      short_desc: formData.shortDesc.trim(),
       technologies: formData.technologies.split(',').map(t => t.trim()).filter(Boolean),
-      imageUrl: formData.imageUrl,
-      repoUrl: formData.repoUrl.trim() || null,
-      demoUrl: formData.demoUrl.trim() || null,
+      image_url: formData.imageUrl,
+      repo_url: formData.repoUrl.trim() || null,
+      demo_url: formData.demoUrl.trim() || null,
       featured: formData.featured,
     }
 
-    if (editingProject?.id) {
-      await supabase.from('projects').update(projectData).eq('id', editingProject.id)
-    } else {
-      await supabase.from('projects').insert([projectData])
-    }
+    try {
+      if (editingProject?.id) {
+        const { error } = await supabase
+          .from('projects')
+          .update(projectData)
+          .eq('id', editingProject.id)
+        
+        if (error) throw error
+      } else {
+        const { error } = await supabase
+          .from('projects')
+          .insert([projectData])
+        
+        if (error) throw error
+      }
 
-    resetForm()
-    fetchProjects()
+      resetForm()
+      await fetchProjects()
+    } catch (err) {
+      console.error('Error saving project:', err)
+      setServerError(
+        err instanceof Error 
+          ? `Error al guardar: ${err.message}` 
+          : 'Error al guardar el proyecto. Intenta de nuevo.'
+      )
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handleDelete(id: string, name: string) {
     if (!confirm(`¿Eliminar el proyecto "${name}"? Esta acción no se puede deshacer.`)) return
-    await supabase.from('projects').delete().eq('id', id)
-    fetchProjects()
+    
+    const { error } = await supabase.from('projects').delete().eq('id', id)
+    
+    if (error) {
+      console.error('Error deleting project:', error)
+      alert('Error al eliminar el proyecto')
+      return
+    }
+    
+    await fetchProjects()
   }
 
   if (loading) {
@@ -156,7 +208,7 @@ export function ProjectsAdmin() {
       <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white">Proyectos</h1>
-          <p className="text-gray-400 mt-1">Gestiona los proyectos de tu portafolio</p>
+          <p className="text-gray-400 mt-1">{projects.length} proyecto{projects.length !== 1 ? 's' : ''} en total</p>
         </div>
         {!isFormOpen && (
           <Button onClick={() => { resetForm(); setIsFormOpen(true) }}>
@@ -167,6 +219,18 @@ export function ProjectsAdmin() {
           </Button>
         )}
       </header>
+
+      {/* Server Error */}
+      {serverError && (
+        <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg" role="alert">
+          <div className="flex items-center gap-2">
+            <svg className="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p className="text-sm text-red-400">{serverError}</p>
+          </div>
+        </div>
+      )}
 
       {/* Formulario */}
       {isFormOpen && (
@@ -183,7 +247,7 @@ export function ProjectsAdmin() {
             </div>
           </CardHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6" noValidate>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Input
                 label="Nombre del proyecto"
@@ -196,9 +260,9 @@ export function ProjectsAdmin() {
               <Input
                 label="Slug (URL amigable)"
                 value={formData.slug}
-                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
                 placeholder="mi-proyecto"
-                hint="Se usará en la URL del proyecto"
+                hint="Se usará en la URL. Solo minúsculas, números y guiones"
                 error={errors.slug}
                 required
               />
@@ -320,7 +384,8 @@ export function ProjectsAdmin() {
             <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-700">
               <Button
                 type="submit"
-                isLoading={uploadState.status === 'uploading'}
+                isLoading={saving}
+                disabled={uploadState.status === 'uploading'}
               >
                 {editingProject?.id ? 'Guardar Cambios' : 'Crear Proyecto'}
               </Button>
@@ -335,89 +400,133 @@ export function ProjectsAdmin() {
       {/* Lista de proyectos */}
       <section aria-label="Lista de proyectos">
         {projects.length > 0 ? (
-          <div className="grid gap-4">
-            {projects.map((project) => (
-              <article
-                key={project.id}
-                className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 
-                  hover:border-gray-600 transition-colors"
-              >
-                <div className="flex flex-col sm:flex-row gap-4">
-                  {project.imageUrl ? (
-                    <img
-                      src={project.imageUrl}
-                      alt={`Captura de ${project.name}`}
-                      className="w-full sm:w-24 h-32 sm:h-24 object-cover rounded-lg flex-shrink-0"
-                    />
-                  ) : (
-                    <div className="w-full sm:w-24 h-32 sm:h-24 bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                  )}
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <h3 className="text-lg font-semibold text-white truncate">{project.name}</h3>
-                        <p className="text-sm text-gray-400 mt-1 line-clamp-2">{project.shortDesc}</p>
+          <>
+            <div className="grid gap-4">
+              {paginatedProjects.map((project) => (
+                <article
+                  key={project.id}
+                  className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 
+                    hover:border-gray-600 transition-colors"
+                >
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    {project.imageUrl ? (
+                      <img
+                        src={project.imageUrl}
+                        alt={`Captura de ${project.name}`}
+                        className="w-full sm:w-24 h-32 sm:h-24 object-cover rounded-lg flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-full sm:w-24 h-32 sm:h-24 bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
                       </div>
-                      {project.featured && (
-                        <Badge variant="warning">Destacado</Badge>
-                      )}
-                    </div>
+                    )}
 
-                    <div className="flex flex-wrap gap-1.5 mt-3">
-                      {project.technologies.map((tech) => (
-                        <Badge key={tech}>{tech}</Badge>
-                      ))}
-                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h3 className="text-lg font-semibold text-white truncate">{project.name}</h3>
+                          <p className="text-sm text-gray-400 mt-1 line-clamp-2">{project.shortDesc}</p>
+                        </div>
+                        {project.featured && (
+                          <Badge variant="warning">Destacado</Badge>
+                        )}
+                      </div>
 
-                    <div className="flex flex-wrap gap-2 mt-4">
-                      <Button size="sm" variant="ghost" onClick={() => handleEdit(project)}>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        Editar
-                      </Button>
-                      {project.repoUrl && (
-                        <a href={project.repoUrl} target="_blank" rel="noopener noreferrer">
-                          <Button size="sm" variant="ghost">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                            Código
-                          </Button>
-                        </a>
-                      )}
-                      {project.demoUrl && (
-                        <a href={project.demoUrl} target="_blank" rel="noopener noreferrer">
-                          <Button size="sm" variant="ghost">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                            </svg>
-                            Demo
-                          </Button>
-                        </a>
-                      )}
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        onClick={() => handleDelete(project.id, project.name)}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Eliminar
-                      </Button>
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        {project.technologies.map((tech) => (
+                          <Badge key={tech}>{tech}</Badge>
+                        ))}
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 mt-4">
+                        <Button size="sm" variant="ghost" onClick={() => handleEdit(project)}>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Editar
+                        </Button>
+                        {project.repoUrl && (
+                          <a href={project.repoUrl} target="_blank" rel="noopener noreferrer">
+                            <Button size="sm" variant="ghost">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                              </svg>
+                              Código
+                            </Button>
+                          </a>
+                        )}
+                        {project.demoUrl && (
+                          <a href={project.demoUrl} target="_blank" rel="noopener noreferrer">
+                            <Button size="sm" variant="ghost">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                              Demo
+                            </Button>
+                          </a>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => handleDelete(project.id, project.name)}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                          Eliminar
+                        </Button>
+                      </div>
                     </div>
                   </div>
+                </article>
+              ))}
+            </div>
+
+            {/* Paginación */}
+            {totalPages > 1 && (
+              <nav className="flex items-center justify-center gap-2 mt-6" aria-label="Paginación">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Anterior
+                </Button>
+                
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? 'primary' : 'ghost'}
+                      size="sm"
+                      onClick={() => setCurrentPage(page)}
+                      aria-current={currentPage === page ? 'page' : undefined}
+                    >
+                      {page}
+                    </Button>
+                  ))}
                 </div>
-              </article>
-            ))}
-          </div>
+
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Siguiente
+                </Button>
+              </nav>
+            )}
+
+            <p className="text-center text-sm text-gray-500 mt-4">
+              Mostrando {(currentPage - 1) * ITEMS_PER_PAGE + 1}-
+              {Math.min(currentPage * ITEMS_PER_PAGE, projects.length)} de {projects.length} proyectos
+            </p>
+          </>
         ) : (
           <Card className="text-center py-12">
             <svg className="w-16 h-16 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

@@ -14,17 +14,21 @@ interface Message {
   read: boolean
 }
 
+const ITEMS_PER_PAGE = 10
+
 export function MessagesAdmin() {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null)
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all')
+  const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => {
     fetchMessages()
   }, [])
 
   async function fetchMessages() {
+    setLoading(true)
     const { data } = await supabase
       .from('messages')
       .select('*')
@@ -81,6 +85,12 @@ export function MessagesAdmin() {
     return true
   })
 
+  const totalPages = Math.ceil(filteredMessages.length / ITEMS_PER_PAGE)
+  const paginatedMessages = filteredMessages.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
+
   const unreadCount = messages.filter((m) => !m.read).length
 
   if (loading) {
@@ -112,7 +122,7 @@ export function MessagesAdmin() {
             key={f.value}
             variant={filter === f.value ? 'primary' : 'secondary'}
             size="sm"
-            onClick={() => setFilter(f.value)}
+            onClick={() => { setFilter(f.value); setCurrentPage(1) }}
             aria-pressed={filter === f.value}
           >
             {f.label}
@@ -131,8 +141,8 @@ export function MessagesAdmin() {
               <h2 className="font-medium text-white">Bandeja de entrada</h2>
             </div>
             <ul className="divide-y divide-gray-700 max-h-[600px] overflow-y-auto" role="list">
-              {filteredMessages.length > 0 ? (
-                filteredMessages.map((msg) => (
+              {paginatedMessages.length > 0 ? (
+                paginatedMessages.map((msg) => (
                   <li key={msg.id}>
                     <button
                       onClick={() => {
@@ -175,6 +185,31 @@ export function MessagesAdmin() {
                 </li>
               )}
             </ul>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <nav className="flex items-center justify-between p-4 border-t border-gray-700" aria-label="Paginación">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Anterior
+                </Button>
+                <span className="text-sm text-gray-400">
+                  {currentPage} / {totalPages}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  Siguiente
+                </Button>
+              </nav>
+            )}
           </Card>
         </div>
 
