@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../config/supabase'
+import { useImageUpload } from '../../hooks/useImageUpload'
 import type { Project } from '../../types'
 
 export function ProjectsAdmin() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const { uploadState, uploadImage, reset: resetUpload } = useImageUpload()
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
@@ -50,6 +52,7 @@ export function ProjectsAdmin() {
       demoUrl: project.demoUrl || '',
       featured: project.featured,
     })
+    resetUpload()
   }
 
   function handleCancel() {
@@ -65,6 +68,17 @@ export function ProjectsAdmin() {
       demoUrl: '',
       featured: false,
     })
+    resetUpload()
+  }
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const url = await uploadImage(file)
+    if (url) {
+      setFormData({ ...formData, imageUrl: url })
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -81,7 +95,7 @@ export function ProjectsAdmin() {
       featured: formData.featured,
     }
 
-    if (editingProject) {
+    if (editingProject?.id) {
       await supabase.from('projects').update(projectData).eq('id', editingProject.id)
     } else {
       await supabase.from('projects').insert([projectData])
@@ -172,22 +186,59 @@ export function ProjectsAdmin() {
                 required
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">URL Imagen</label>
-                <input
-                  type="text"
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+            
+            <div>
+              <label className="block text-sm text-gray-400 mb-2">Imagen del Proyecto</label>
+              <div className="flex items-center gap-4">
+                <label className="flex-1">
+                  <div className="w-full px-4 py-3 bg-gray-700 rounded-lg text-center cursor-pointer hover:bg-gray-600 transition-colors border-2 border-dashed border-gray-600 hover:border-blue-500">
+                    {uploadState.status === 'uploading' ? (
+                      <span className="text-gray-400">Subiendo...</span>
+                    ) : (
+                      <span className="text-gray-400">
+                        {formData.imageUrl ? 'Cambiar imagen' : 'Seleccionar imagen'}
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    disabled={uploadState.status === 'uploading'}
+                  />
+                </label>
               </div>
+              {uploadState.error && (
+                <p className="text-red-400 text-sm mt-2">{uploadState.error}</p>
+              )}
+              {formData.imageUrl && (
+                <div className="mt-3">
+                  <img
+                    src={formData.imageUrl}
+                    alt="Preview"
+                    className="w-32 h-32 object-cover rounded-lg"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm text-gray-400 mb-2">URL Repositorio</label>
                 <input
                   type="text"
                   value={formData.repoUrl}
                   onChange={(e) => setFormData({ ...formData, repoUrl: e.target.value })}
+                  className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">URL Demo</label>
+                <input
+                  type="text"
+                  value={formData.demoUrl}
+                  onChange={(e) => setFormData({ ...formData, demoUrl: e.target.value })}
                   className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -205,7 +256,8 @@ export function ProjectsAdmin() {
             <div className="flex gap-3">
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                disabled={uploadState.status === 'uploading'}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
               >
                 {editingProject.id ? 'Guardar Cambios' : 'Crear Proyecto'}
               </button>
@@ -225,7 +277,7 @@ export function ProjectsAdmin() {
         <table className="w-full">
           <thead className="bg-gray-700">
             <tr>
-              <th className="px-6 py-3 text-left text-sm font-medium text-gray-300">Nombre</th>
+              <th className="px-6 py-3 text-left text-sm font-medium text-gray-300">Proyecto</th>
               <th className="px-6 py-3 text-left text-sm font-medium text-gray-300">Tecnologías</th>
               <th className="px-6 py-3 text-left text-sm font-medium text-gray-300">Destacado</th>
               <th className="px-6 py-3 text-right text-sm font-medium text-gray-300">Acciones</th>
@@ -235,8 +287,23 @@ export function ProjectsAdmin() {
             {projects.map((project) => (
               <tr key={project.id} className="border-t border-gray-700 hover:bg-gray-750">
                 <td className="px-6 py-4">
-                  <div className="font-medium text-white">{project.name}</div>
-                  <div className="text-sm text-gray-400">{project.shortDesc}</div>
+                  <div className="flex items-center gap-3">
+                    {project.imageUrl ? (
+                      <img
+                        src={project.imageUrl}
+                        alt={project.name}
+                        className="w-12 h-12 object-cover rounded-lg"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-gray-700 rounded-lg flex items-center justify-center">
+                        <span className="text-gray-500">📁</span>
+                      </div>
+                    )}
+                    <div>
+                      <div className="font-medium text-white">{project.name}</div>
+                      <div className="text-sm text-gray-400">{project.shortDesc}</div>
+                    </div>
+                  </div>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex flex-wrap gap-1">

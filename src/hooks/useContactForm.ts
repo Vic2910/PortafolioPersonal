@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { supabase } from '../config/supabase'
 
 interface FormData {
   name: string
@@ -62,10 +63,27 @@ export function useContactForm() {
     
     if (!validate()) return
 
+    if (formData.website) {
+      setFormState({
+        status: 'success',
+        message: '¡Mensaje enviado correctamente!',
+      })
+      return
+    }
+
     setFormState({ status: 'submitting', message: '' })
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const { error } = await supabase.from('messages').insert([
+        {
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          subject: formData.subject.trim(),
+          message: formData.message.trim(),
+        },
+      ])
+
+      if (error) throw error
 
       setFormState({
         status: 'success',
