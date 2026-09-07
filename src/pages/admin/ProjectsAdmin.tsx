@@ -1,13 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { supabase } from '../../config/supabase'
 import { useImageUpload } from '../../hooks/useImageUpload'
+import { Button } from '../../components/common/Button'
+import { Input } from '../../components/common/Input'
+import { Textarea } from '../../components/common/Textarea'
+import { Card, CardHeader, CardTitle } from '../../components/common/Card'
+import { Badge } from '../../components/common/Badge'
 import type { Project } from '../../types'
 
 export function ProjectsAdmin() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [isFormOpen, setIsFormOpen] = useState(false)
   const { uploadState, uploadImage, reset: resetUpload } = useImageUpload()
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
@@ -19,6 +26,7 @@ export function ProjectsAdmin() {
     demoUrl: '',
     featured: false,
   })
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     fetchProjects()
@@ -33,10 +41,45 @@ export function ProjectsAdmin() {
     setLoading(false)
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('¿Eliminar este proyecto?')) return
-    await supabase.from('projects').delete().eq('id', id)
-    fetchProjects()
+  function validate(): boolean {
+    const newErrors: Record<string, string> = {}
+
+    if (!formData.name.trim()) {
+      newErrors.name = 'El nombre es requerido'
+    }
+    if (!formData.slug.trim()) {
+      newErrors.slug = 'El slug es requerido'
+    }
+    if (!formData.shortDesc.trim()) {
+      newErrors.shortDesc = 'La descripción corta es requerida'
+    }
+    if (!formData.description.trim()) {
+      newErrors.description = 'La descripción es requerida'
+    }
+    if (!formData.technologies.trim()) {
+      newErrors.technologies = 'Las tecnologías son requeridas'
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  function resetForm() {
+    setFormData({
+      name: '',
+      slug: '',
+      description: '',
+      shortDesc: '',
+      technologies: '',
+      imageUrl: '',
+      repoUrl: '',
+      demoUrl: '',
+      featured: false,
+    })
+    setErrors({})
+    resetUpload()
+    setEditingProject(null)
+    setIsFormOpen(false)
   }
 
   function handleEdit(project: Project) {
@@ -52,22 +95,7 @@ export function ProjectsAdmin() {
       demoUrl: project.demoUrl || '',
       featured: project.featured,
     })
-    resetUpload()
-  }
-
-  function handleCancel() {
-    setEditingProject(null)
-    setFormData({
-      name: '',
-      slug: '',
-      description: '',
-      shortDesc: '',
-      technologies: '',
-      imageUrl: '',
-      repoUrl: '',
-      demoUrl: '',
-      featured: false,
-    })
+    setIsFormOpen(true)
     resetUpload()
   }
 
@@ -83,15 +111,18 @@ export function ProjectsAdmin() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    
+    if (!validate()) return
+
     const projectData = {
-      name: formData.name,
-      slug: formData.slug,
-      description: formData.description,
-      shortDesc: formData.shortDesc,
+      name: formData.name.trim(),
+      slug: formData.slug.trim(),
+      description: formData.description.trim(),
+      shortDesc: formData.shortDesc.trim(),
       technologies: formData.technologies.split(',').map(t => t.trim()).filter(Boolean),
       imageUrl: formData.imageUrl,
-      repoUrl: formData.repoUrl || null,
-      demoUrl: formData.demoUrl || null,
+      repoUrl: formData.repoUrl.trim() || null,
+      demoUrl: formData.demoUrl.trim() || null,
       featured: formData.featured,
     }
 
@@ -101,253 +132,308 @@ export function ProjectsAdmin() {
       await supabase.from('projects').insert([projectData])
     }
 
-    handleCancel()
+    resetForm()
+    fetchProjects()
+  }
+
+  async function handleDelete(id: string, name: string) {
+    if (!confirm(`¿Eliminar el proyecto "${name}"? Esta acción no se puede deshacer.`)) return
+    await supabase.from('projects').delete().eq('id', id)
     fetchProjects()
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex items-center justify-center h-64" role="status">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500" />
+        <span className="sr-only">Cargando proyectos...</span>
       </div>
     )
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Proyectos</h2>
-        {!editingProject && (
-          <button
-            onClick={() => setEditingProject({} as Project)}
-            className="bg-blue-600 px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            + Nuevo Proyecto
-          </button>
+    <div className="space-y-6">
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-white">Proyectos</h1>
+          <p className="text-gray-400 mt-1">Gestiona los proyectos de tu portafolio</p>
+        </div>
+        {!isFormOpen && (
+          <Button onClick={() => { resetForm(); setIsFormOpen(true) }}>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Nuevo Proyecto
+          </Button>
         )}
-      </div>
+      </header>
 
-      {editingProject && (
-        <div className="bg-gray-800 p-6 rounded-xl mb-6 border border-gray-700">
-          <h3 className="text-lg font-bold mb-4">
-            {editingProject.id ? 'Editar Proyecto' : 'Nuevo Proyecto'}
-          </h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Nombre *</label>
+      {/* Formulario */}
+      {isFormOpen && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>{editingProject?.id ? 'Editar Proyecto' : 'Nuevo Proyecto'}</CardTitle>
+              <Button variant="ghost" size="sm" onClick={resetForm}>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+                Cerrar
+              </Button>
+            </div>
+          </CardHeader>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Input
+                label="Nombre del proyecto"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Mi Proyecto"
+                error={errors.name}
+                required
+              />
+              <Input
+                label="Slug (URL amigable)"
+                value={formData.slug}
+                onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                placeholder="mi-proyecto"
+                hint="Se usará en la URL del proyecto"
+                error={errors.slug}
+                required
+              />
+            </div>
+
+            <Input
+              label="Descripción corta"
+              value={formData.shortDesc}
+              onChange={(e) => setFormData({ ...formData, shortDesc: e.target.value })}
+              placeholder="Una breve descripción del proyecto"
+              error={errors.shortDesc}
+              required
+            />
+
+            <Textarea
+              label="Descripción completa"
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              placeholder="Describe el proyecto en detalle: objetivos, tecnologías utilizadas, resultados..."
+              rows={4}
+              error={errors.description}
+              required
+            />
+
+            <Input
+              label="Tecnologías"
+              value={formData.technologies}
+              onChange={(e) => setFormData({ ...formData, technologies: e.target.value })}
+              placeholder="React, TypeScript, Node.js"
+              hint="Separadas por coma"
+              error={errors.technologies}
+              required
+            />
+
+            {/* Image Upload */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-300">
+                Imagen del proyecto
+              </label>
+              <div
+                className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-colors
+                  ${uploadState.status === 'uploading' 
+                    ? 'border-blue-500 bg-blue-500/10' 
+                    : 'border-gray-700 hover:border-gray-600 bg-gray-800/50'
+                  }`}
+              >
                 <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  disabled={uploadState.status === 'uploading'}
+                  aria-label="Seleccionar imagen del proyecto"
                 />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Slug *</label>
-                <input
-                  type="text"
-                  value={formData.slug}
-                  onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">Descripción Corta *</label>
-              <input
-                type="text"
-                value={formData.shortDesc}
-                onChange={(e) => setFormData({ ...formData, shortDesc: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">Descripción Completa *</label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={3}
-                className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">Tecnologías (separadas por coma) *</label>
-              <input
-                type="text"
-                value={formData.technologies}
-                onChange={(e) => setFormData({ ...formData, technologies: e.target.value })}
-                className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="React, TypeScript, Node.js"
-                required
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm text-gray-400 mb-2">Imagen del Proyecto</label>
-              <div className="flex items-center gap-4">
-                <label className="flex-1">
-                  <div className="w-full px-4 py-3 bg-gray-700 rounded-lg text-center cursor-pointer hover:bg-gray-600 transition-colors border-2 border-dashed border-gray-600 hover:border-blue-500">
-                    {uploadState.status === 'uploading' ? (
-                      <span className="text-gray-400">Subiendo...</span>
-                    ) : (
-                      <span className="text-gray-400">
-                        {formData.imageUrl ? 'Cambiar imagen' : 'Seleccionar imagen'}
-                      </span>
-                    )}
+                
+                {uploadState.status === 'uploading' ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500" />
+                    <p className="text-sm text-gray-400">Subiendo imagen...</p>
                   </div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    disabled={uploadState.status === 'uploading'}
-                  />
-                </label>
+                ) : formData.imageUrl ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <img
+                      src={formData.imageUrl}
+                      alt="Preview del proyecto"
+                      className="w-32 h-32 object-cover rounded-lg"
+                    />
+                    <p className="text-sm text-gray-400">Haz clic para cambiar la imagen</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <svg className="w-12 h-12 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-sm text-gray-400">
+                      <span className="text-blue-400 font-medium">Haz clic para subir</span> o arrastra una imagen
+                    </p>
+                    <p className="text-xs text-gray-500">PNG, JPG, GIF hasta 5MB</p>
+                  </div>
+                )}
               </div>
               {uploadState.error && (
-                <p className="text-red-400 text-sm mt-2">{uploadState.error}</p>
-              )}
-              {formData.imageUrl && (
-                <div className="mt-3">
-                  <img
-                    src={formData.imageUrl}
-                    alt="Preview"
-                    className="w-32 h-32 object-cover rounded-lg"
-                  />
-                </div>
+                <p className="text-sm text-red-400" role="alert">{uploadState.error}</p>
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">URL Repositorio</label>
-                <input
-                  type="text"
-                  value={formData.repoUrl}
-                  onChange={(e) => setFormData({ ...formData, repoUrl: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">URL Demo</label>
-                <input
-                  type="text"
-                  value={formData.demoUrl}
-                  onChange={(e) => setFormData({ ...formData, demoUrl: e.target.value })}
-                  className="w-full px-4 py-2 bg-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Input
+                label="URL del repositorio"
+                value={formData.repoUrl}
+                onChange={(e) => setFormData({ ...formData, repoUrl: e.target.value })}
+                placeholder="https://github.com/usuario/proyecto"
+                hint="Opcional"
+              />
+              <Input
+                label="URL de demo"
+                value={formData.demoUrl}
+                onChange={(e) => setFormData({ ...formData, demoUrl: e.target.value })}
+                placeholder="https://mi-proyecto.vercel.app"
+                hint="Opcional"
+              />
             </div>
-            <div className="flex items-center gap-2">
+
+            <div className="flex items-center gap-3">
               <input
                 type="checkbox"
                 id="featured"
                 checked={formData.featured}
                 onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
-                className="w-4 h-4 rounded bg-gray-700 border-gray-600 text-blue-600 focus:ring-blue-500"
+                className="w-5 h-5 rounded bg-gray-700 border-gray-600 text-blue-600 
+                  focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
               />
-              <label htmlFor="featured" className="text-sm text-gray-400">Proyecto destacado</label>
+              <label htmlFor="featured" className="text-sm text-gray-300 cursor-pointer">
+                Marcar como proyecto destacado
+              </label>
             </div>
-            <div className="flex gap-3">
-              <button
+
+            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-700">
+              <Button
                 type="submit"
-                disabled={uploadState.status === 'uploading'}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+                isLoading={uploadState.status === 'uploading'}
               >
-                {editingProject.id ? 'Guardar Cambios' : 'Crear Proyecto'}
-              </button>
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-              >
+                {editingProject?.id ? 'Guardar Cambios' : 'Crear Proyecto'}
+              </Button>
+              <Button type="button" variant="secondary" onClick={resetForm}>
                 Cancelar
-              </button>
+              </Button>
             </div>
           </form>
-        </div>
+        </Card>
       )}
 
-      <div className="bg-gray-800 rounded-xl overflow-hidden border border-gray-700">
-        <table className="w-full">
-          <thead className="bg-gray-700">
-            <tr>
-              <th className="px-6 py-3 text-left text-sm font-medium text-gray-300">Proyecto</th>
-              <th className="px-6 py-3 text-left text-sm font-medium text-gray-300">Tecnologías</th>
-              <th className="px-6 py-3 text-left text-sm font-medium text-gray-300">Destacado</th>
-              <th className="px-6 py-3 text-right text-sm font-medium text-gray-300">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
+      {/* Lista de proyectos */}
+      <section aria-label="Lista de proyectos">
+        {projects.length > 0 ? (
+          <div className="grid gap-4">
             {projects.map((project) => (
-              <tr key={project.id} className="border-t border-gray-700 hover:bg-gray-750">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    {project.imageUrl ? (
-                      <img
-                        src={project.imageUrl}
-                        alt={project.name}
-                        className="w-12 h-12 object-cover rounded-lg"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 bg-gray-700 rounded-lg flex items-center justify-center">
-                        <span className="text-gray-500">📁</span>
+              <article
+                key={project.id}
+                className="bg-gray-800 border border-gray-700 rounded-xl p-4 sm:p-6 
+                  hover:border-gray-600 transition-colors"
+              >
+                <div className="flex flex-col sm:flex-row gap-4">
+                  {project.imageUrl ? (
+                    <img
+                      src={project.imageUrl}
+                      alt={`Captura de ${project.name}`}
+                      className="w-full sm:w-24 h-32 sm:h-24 object-cover rounded-lg flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-full sm:w-24 h-32 sm:h-24 bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <svg className="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="text-lg font-semibold text-white truncate">{project.name}</h3>
+                        <p className="text-sm text-gray-400 mt-1 line-clamp-2">{project.shortDesc}</p>
                       </div>
-                    )}
-                    <div>
-                      <div className="font-medium text-white">{project.name}</div>
-                      <div className="text-sm text-gray-400">{project.shortDesc}</div>
+                      {project.featured && (
+                        <Badge variant="warning">Destacado</Badge>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 mt-3">
+                      {project.technologies.map((tech) => (
+                        <Badge key={tech}>{tech}</Badge>
+                      ))}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      <Button size="sm" variant="ghost" onClick={() => handleEdit(project)}>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Editar
+                      </Button>
+                      {project.repoUrl && (
+                        <a href={project.repoUrl} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="ghost">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                            Código
+                          </Button>
+                        </a>
+                      )}
+                      {project.demoUrl && (
+                        <a href={project.demoUrl} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="ghost">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            Demo
+                          </Button>
+                        </a>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() => handleDelete(project.id, project.name)}
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Eliminar
+                      </Button>
                     </div>
                   </div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex flex-wrap gap-1">
-                    {project.technologies.slice(0, 3).map((tech) => (
-                      <span key={tech} className="bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded">
-                        {tech}
-                      </span>
-                    ))}
-                    {project.technologies.length > 3 && (
-                      <span className="text-gray-500 text-xs">+{project.technologies.length - 3}</span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  {project.featured ? (
-                    <span className="text-yellow-400">★</span>
-                  ) : (
-                    <span className="text-gray-600">—</span>
-                  )}
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <button
-                    onClick={() => handleEdit(project)}
-                    className="text-blue-400 hover:text-blue-300 mr-3 transition-colors"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    onClick={() => handleDelete(project.id)}
-                    className="text-red-400 hover:text-red-300 transition-colors"
-                  >
-                    Eliminar
-                  </button>
-                </td>
-              </tr>
+                </div>
+              </article>
             ))}
-          </tbody>
-        </table>
-        {projects.length === 0 && (
-          <div className="text-center text-gray-500 py-8">
-            No hay proyectos. ¡Crea uno nuevo!
           </div>
+        ) : (
+          <Card className="text-center py-12">
+            <svg className="w-16 h-16 text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            <h3 className="text-lg font-medium text-white mb-2">No hay proyectos</h3>
+            <p className="text-gray-400 mb-4">Comienza agregando tu primer proyecto al portafolio</p>
+            <Button onClick={() => { resetForm(); setIsFormOpen(true) }}>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Crear Primer Proyecto
+            </Button>
+          </Card>
         )}
-      </div>
+      </section>
     </div>
   )
 }
