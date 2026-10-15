@@ -1,5 +1,27 @@
 # Descarga dinámica de CV (HU-04)
 
+## Español e inglés (2026-10-15)
+
+El selector «Idioma del CV» permite descargar español (predeterminado) o inglés.
+Los nombres de archivo terminan en `-ES.pdf` o `-EN.pdf`, y el PDF declara su idioma.
+Los controles conservan altura y anchura durante generación, éxito y error; los
+mensajes se sitúan fuera de la fila y se anuncian con una región de estado.
+
+`src/services/cvLanguage.ts` contiene etiquetas y traducciones editoriales de los
+textos narrativos actuales, incluidos los proyectos públicos consultados. Las
+claves son los textos originales completos: al cambiar una descripción, actualizar
+su traducción allí. Si falta una traducción exacta, se bloquea únicamente la
+descarga inglesa con un mensaje específico y se ofrece español; nunca se exporta
+una traducción vieja ni un documento parcialmente traducido. No se realizan
+traducciones automáticas mediante servicios externos. Identidad, instituciones,
+nombres de proyectos, tecnologías y enlaces se leen de las fuentes originales.
+
+Las pruebas E2E se ejecutan en escritorio y móvil (320px), comprueban ambos
+idiomas y comparan las dimensiones antes y después de descargar.
+Validación del ajuste: build y ESLint correctos, 16 pruebas unitarias y los dos
+escenarios E2E aprobados. Capturas de escritorio/móvil y PDF inglés revisados
+visualmente, sin deformación de controles ni desbordamiento horizontal.
+
 El botón compartido `src/components/common/DownloadCvButton.tsx` se usa en Hero y
 Contacto. Importa `src/services/cv.ts` únicamente al descargar. jsPDF genera texto
 seleccionable en A4, una columna, Helvetica, márgenes de 48 puntos y numeración.

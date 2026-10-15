@@ -20,7 +20,7 @@ export function Contact() {
           </div>
 
           <div className="mt-8 text-center text-gray-500 text-sm">
-            <DownloadCvButton />
+            <div className="mb-16"><DownloadCvButton /></div>
             <p>También puedes encontrarme en:</p>
             <div className="flex justify-center gap-6 mt-4">
               <a

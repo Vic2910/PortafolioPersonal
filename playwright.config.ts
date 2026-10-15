@@ -1,6 +1,11 @@
 import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
+  workers: 1,
+  projects: [
+    { name: 'desktop', use: { viewport: { width: 1280, height: 900 } } },
+    { name: 'mobile', use: { viewport: { width: 320, height: 800 } } },
+  ],
   testDir: './e2e',
   use: { baseURL: 'http://127.0.0.1:5174', channel: 'msedge' },
   webServer: {

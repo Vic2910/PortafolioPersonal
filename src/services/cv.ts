@@ -5,20 +5,23 @@ import { skills } from '../data/skills'
 import { getProjects } from './projects'
 import { savePdf } from './savePdf'
 import type { Project } from '../types'
+import { cvLabels, translateCvText, type CvLanguage } from './cvLanguage'
 
 // References to the portfolio sources, never a second set of CV content.
 export function getCvContent(projects: Project[]) {
   return { profile: heroData, about: aboutData, skills, projects }
 }
 
-export function createCvPdf(content: ReturnType<typeof getCvContent>) {
+export function createCvPdf(content: ReturnType<typeof getCvContent>, language: CvLanguage = 'es') {
+  const labels = cvLabels[language]
+  const translate = (value: string) => translateCvText(value, language)
   const pdf = new jsPDF({ unit: 'pt', format: 'a4', compress: true })
   const margin = 48
   const width = pdf.internal.pageSize.getWidth() - margin * 2
   const bottom = pdf.internal.pageSize.getHeight() - 48
   let y = margin
   pdf.setProperties({ title: `CV - ${content.profile.name}`, author: content.profile.name })
-  pdf.setLanguage('es-SV')
+  pdf.setLanguage(language === 'es' ? 'es-SV' : 'en')
 
   function space(height: number) {
     if (y + height > bottom) { pdf.addPage(); y = margin }
@@ -57,21 +60,21 @@ export function createCvPdf(content: ReturnType<typeof getCvContent>) {
   text([content.profile.location, content.profile.social.email].filter(Boolean).join(' | '))
   link('GitHub', content.profile.social.github)
   link('LinkedIn', content.profile.social.linkedin)
-  if (content.about.bio.trim()) { section('Perfil profesional'); text(content.about.bio) }
+  if (content.about.bio.trim()) { section(labels.profile); text(translate(content.about.bio)) }
 
   if (content.about.education.length) {
-    section('Formación académica')
+    section(labels.education)
     for (const item of content.about.education) {
       space(64)
-      text(item.title, 11, true)
-      text([item.institution, item.period].filter(Boolean).join(' | '))
-      text(item.description)
+      text(translate(item.title), 11, true)
+      text([item.institution, language === 'en' ? item.period.replace(/Presente/g, 'Present') : item.period].filter(Boolean).join(' | '))
+      text(translate(item.description))
     }
   }
 
   if (content.skills.length) {
-    section('Competencias técnicas')
-    const categories = { frontend: 'Frontend', backend: 'Backend', tools: 'Herramientas' } as const
+    section(labels.skills)
+    const categories = { frontend: 'Frontend', backend: 'Backend', tools: labels.tools } as const
     for (const [category, label] of Object.entries(categories)) {
       const names = content.skills.filter((skill) => skill.category === category).map((skill) => skill.name)
       if (names.length) text(`${label}: ${names.join(', ')}`)
@@ -79,13 +82,13 @@ export function createCvPdf(content: ReturnType<typeof getCvContent>) {
   }
 
   if (content.projects.length) {
-    section('Proyectos')
+    section(labels.projects)
     for (const project of content.projects) {
       space(75)
       text(project.name, 11, true)
-      text(project.description)
-      if (project.technologies.length) text(`Tecnologías: ${project.technologies.join(', ')}`, 9)
-      link('Repositorio', project.repoUrl)
+      text(translate(project.description))
+      if (project.technologies.length) text(`${labels.technologies}: ${project.technologies.join(', ')}`, 9)
+      link(labels.repository, project.repoUrl)
       link('Demo', project.demoUrl)
       y += 4
     }
@@ -101,11 +104,11 @@ export function createCvPdf(content: ReturnType<typeof getCvContent>) {
   return pdf
 }
 
-export async function downloadCv() {
+export async function downloadCv(language: CvLanguage = 'es') {
   const projects = await getProjects()
   const content = getCvContent(projects)
-  const pdf = createCvPdf(content)
+  const pdf = createCvPdf(content, language)
   const name = content.profile.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '') || 'Perfil'
-  await savePdf(pdf, `CV-${name}.pdf`)
+  await savePdf(pdf, `CV-${name}-${language.toUpperCase()}.pdf`)
 }

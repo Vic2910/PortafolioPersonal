@@ -1,5 +1,14 @@
 # HU-04: Descargar CV
 
+## Ajuste 2026-10-15: idiomas y estabilidad visual
+
+- Selector accesible Español/Inglés junto al botón, con Español predeterminado.
+- Los estados de descarga no modifican las dimensiones de los botones ni estiran el CTA de proyectos.
+- Traducir encabezados y textos narrativos; conservar identidad, contactos, instituciones y tecnologías de la fuente compartida.
+- Las traducciones se vinculan al texto original exacto: si cambia un texto sin traducción vigente, informar del problema al solicitar inglés, sin generar un CV mezclado ni usar traducciones obsoletas. Español siempre consume el contenido actual.
+- Validar selección, PDF en ambos idiomas, errores, teclado y geometría antes/después de descargar en escritorio y móvil.
+- Normas: `docs/01-marco-normativo/01-wcag-2.2-aa.md` (etiquetas, teclado y estados), `docs/01-marco-normativo/03-iso-9241-usabilidad-ux.md` (estabilidad y retroalimentación) y `docs/01-marco-normativo/01-iso-iec-25010-calidad-software.md` (consistencia).
+
 ## Especificación de implementación (2026-10-14)
 
 - Generar un PDF nuevo en el navegador en cada pulsación, sin mantener un CV estático ni copiar datos del perfil.

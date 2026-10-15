@@ -12,7 +12,19 @@ describe('Descargar CV', () => {
     render(<DownloadCvButton />)
     fireEvent.click(screen.getByRole('button', { name: 'Descargar CV' }))
     await waitFor(() => expect(downloadCv).toHaveBeenCalledOnce())
+    expect(downloadCv).toHaveBeenCalledWith('es')
     expect(await screen.findByText('CV generado. Descarga iniciada.')).toBeInTheDocument()
+  })
+
+  it('permite seleccionar inglés y deshabilita el selector durante la descarga', async () => {
+    vi.mocked(downloadCv).mockResolvedValue(undefined)
+    render(<DownloadCvButton />)
+    const select = screen.getByRole('combobox', { name: 'Idioma del CV' })
+    fireEvent.change(select, { target: { value: 'en' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Descargar CV' }))
+    expect(select).toBeDisabled()
+    await waitFor(() => expect(downloadCv).toHaveBeenCalledWith('en'))
+    await waitFor(() => expect(select).toBeEnabled())
   })
 
   it('bloquea descargas repetidas durante la generación', async () => {

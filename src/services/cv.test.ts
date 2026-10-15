@@ -11,6 +11,8 @@ import { heroData } from '../config/hero'
 import { aboutData } from '../data/about'
 import { skills } from '../data/skills'
 import type { Project } from '../types'
+import { sampleProjects } from '../data/projects'
+import { MissingCvTranslationError } from './cvLanguage'
 
 vi.mock('./projects', () => ({ getProjects: vi.fn() }))
 vi.mock('./savePdf', () => ({ savePdf: vi.fn() }))
@@ -35,6 +37,21 @@ async function readPdf(pdf: jsPDF) {
 afterEach(() => vi.restoreAllMocks())
 
 describe('CV PDF', () => {
+  it('genera inglés completo conservando datos comunes y metadatos del idioma', async () => {
+    const pdf = createCvPdf(getCvContent(sampleProjects), 'en')
+    const text = (await readPdf(pdf)).join(' ')
+    for (const value of ['Professional profile', 'Education', 'Technical skills', 'Projects',
+      'Software Development Engineering', '2023 - Present', 'E-commerce sales dashboard', heroData.name,
+      aboutData.education[0].institution]) expect(text).toContain(value)
+    expect(text).not.toContain('Soy Victor')
+    expect(pdf.output()).toContain('/Lang (en)')
+  })
+
+  it('rechaza inglés si cambia un texto sin traducción vigente, sin afectar español', () => {
+    const content = getCvContent([{ ...project, description: 'Descripción nueva sin traducción' }])
+    expect(() => createCvPdf(content, 'en')).toThrow(MissingCvTranslationError)
+    expect(() => createCvPdf(content, 'es')).not.toThrow()
+  })
   it('genera un PDF válido, con datos reales, acentos y sin enlaces provisionales', async () => {
     const pdf = createCvPdf(getCvContent([project]))
     const text = (await readPdf(pdf)).join(' ')

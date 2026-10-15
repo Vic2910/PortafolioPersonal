@@ -28,10 +28,10 @@ export function Hero() {
             {heroData.description}
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+          <div className="flex flex-col sm:flex-row items-center gap-4 justify-center mb-20">
             <a
               href={heroData.cta.primary.href}
-              className="px-8 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
+              className="inline-flex h-12 shrink-0 items-center justify-center px-8 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium transition-colors"
             >
               {heroData.cta.primary.text}
             </a>
