@@ -31,6 +31,12 @@ el navegador controla el guardado final y el usuario puede cancelarlo.
 
 ## Verificación
 
+El build comprueba también los tipos de las pruebas en `src/`. Por ello,
+`@types/node` debe declararse explícitamente en `devDependencies`: las pruebas
+PDF usan `node:url` y una referencia de tipos local. No depender de instalaciones
+transitivas o del entorno del desarrollador. Esta corrección se valida contra
+`docs/01-marco-normativo/01-iso-iec-25010-calidad-software.md` (portabilidad y fiabilidad).
+
 ```bash
 npm run typecheck
 npm run lint
