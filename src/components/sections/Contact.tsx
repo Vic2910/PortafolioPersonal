@@ -1,3 +1,4 @@
+import { DownloadCvButton } from '../common/DownloadCvButton'
 import { ContactForm } from '../common/ContactForm'
 
 export function Contact() {
@@ -19,6 +20,7 @@ export function Contact() {
           </div>
 
           <div className="mt-8 text-center text-gray-500 text-sm">
+            <DownloadCvButton />
             <p>También puedes encontrarme en:</p>
             <div className="flex justify-center gap-6 mt-4">
               <a

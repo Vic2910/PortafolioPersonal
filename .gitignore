@@ -25,3 +25,6 @@ npm-debug.log*
 
 # Temp
 portafolio-temp/
+tmp/pdfs/
+test-results/
+playwright-report/

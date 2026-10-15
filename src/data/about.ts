@@ -10,16 +10,16 @@ export const aboutData = {
   ],
 
   stats: [
-    { label: 'Proyectos Completados', value: '6' },
-    { label: 'Tecnologías', value: '12+' },
+    { label: 'Proyectos Completados', value: '3' },
+    { label: 'Tecnologías', value: '4+' },
     { label: 'Años Estudiando', value: '3+' },
   ],
 
   education: [
     {
-      title: 'Ingeniería en Sistemas Computacionales',
-      institution: 'Universidad',
-      period: '2021 - Presente',
+      title: 'Ingeniería en Desarrollo de Software',
+      institution: 'Universidad Católica de El Salvador',
+      period: '2023 - Presente',
       description: 'Formación en desarrollo de software, arquitectura y bases de datos.',
     },
   ],

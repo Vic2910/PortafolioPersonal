@@ -52,6 +52,7 @@ Los runbooks están organizados por tareas operativas:
 | RB-09 | [Seguridad Auditoría](09-runbook-seguridad-auditoria.md) | Desarrolladores | Mensual |
 | RB-10 | [Backup Restauración](10-runbook-backup-restauracion.md) | Desarrolladores | Semanal/Mensual |
 | RB-11 | [Monitoreo Métricas](11-runbook-monitoreo-metricas.md) | Desarrolladores | Semanal |
+| RB-12 | [Descarga dinámica de CV](12-runbook-descarga-cv.md) | Desarrolladores | Al actualizar o validar el CV |
 
 ---
 

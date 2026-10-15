@@ -1,5 +1,25 @@
 # HU-04: Descargar CV
 
+## Especificación de implementación (2026-10-14)
+
+- Generar un PDF nuevo en el navegador en cada pulsación, sin mantener un CV estático ni copiar datos del perfil.
+- Consumir `heroData`, `aboutData`, `skills` y la misma consulta de proyectos de Supabase que usa el portafolio; volver a consultar en cada descarga. No usar proyectos de ejemplo como sustituto ante errores.
+- Una columna A4, texto seleccionable, márgenes y paginación automáticos; perfil, formación, competencias y proyectos. Omitir secciones vacías y enlaces provisionales. No inferir experiencia laboral ni fechas ausentes.
+- Botones en Hero y Contacto con bloqueo durante generación, estado anunciado y error recuperable mediante nueva pulsación. Si falla la consulta o generación, no descargar un CV incompleto.
+- Cargar el generador mediante importación dinámica para evitar incorporarlo al paquete inicial.
+- Validar PDF real mediante extracción de texto, paginación y revisión visual; probar descarga, fallo/reintento y cambios entre descargas.
+
+Referencias normativas aplicables (rutas reales):
+`docs/01-marco-normativo/01-wcag-2.2-aa.md` (teclado, foco, estados),
+`docs/01-marco-normativo/03-iso-9241-usabilidad-ux.md` (retroalimentación y recuperación),
+`docs/01-marco-normativo/01-iso-iec-25010-calidad-software.md` (fiabilidad y mantenibilidad),
+`docs/01-marco-normativo/02-core-web-vitals.md` (carga diferida).
+
+Presentación basada en las recomendaciones de claridad, concisión y jerarquía de
+[Harvard](https://careerservices.fas.harvard.edu/resources/create-a-strong-resume/) y
+[Oxford](https://www.ox.ac.uk/careers/careers-guidance/job-search-and-applications/writing-applications/cvs).
+Conservar el orden editorial de proyectos, que no tienen fechas; formación en orden cronológico inverso según su fuente.
+
 ## Datos de la Historia
 
 | Campo | Valor |

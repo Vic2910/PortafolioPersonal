@@ -12,7 +12,6 @@ export const heroData = {
     },
     secondary: {
       text: "Descargar CV",
-      href: "/cv-victor-arevalo.pdf",
     },
   },
   social: {

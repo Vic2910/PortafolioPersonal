@@ -3,7 +3,7 @@ import type { Skill } from '../types'
 export const skills: Skill[] = [
   // Frontend
   { id: '1', name: 'React', category: 'frontend', level: 'intermediate' },
-  { id: '2', name: 'Angular', category: 'frontend', level: 'intermediate' },
+  { id: '2', name: 'Angular', category: 'frontend', level: 'beginner' },
   { id: '3', name: 'Next.js', category: 'frontend', level: 'beginner' },
   { id: '4', name: 'TypeScript', category: 'frontend', level: 'intermediate' },
   { id: '5', name: 'Tailwind CSS', category: 'frontend', level: 'intermediate' },

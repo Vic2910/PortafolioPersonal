@@ -1,3 +1,4 @@
+import { DownloadCvButton } from '../common/DownloadCvButton'
 import { heroData } from '../../config/hero'
 
 export function Hero() {
@@ -34,13 +35,7 @@ export function Hero() {
             >
               {heroData.cta.primary.text}
             </a>
-            <a
-              href={heroData.cta.secondary.href}
-              className="px-8 py-3 border border-gray-600 hover:border-gray-500 rounded-lg font-medium transition-colors"
-              download
-            >
-              {heroData.cta.secondary.text}
-            </a>
+            <DownloadCvButton />
           </div>
 
           <div className="flex justify-center gap-6">
